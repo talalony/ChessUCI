@@ -8,6 +8,7 @@ import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.*;
 import java.awt.geom.Rectangle2D;
 import java.io.*;
+import java.net.URISyntaxException;
 import java.net.URL;
 
 import static java.util.function.UnaryOperator.identity;
@@ -20,7 +21,6 @@ import javax.sound.sampled.FloatControl;
 import javax.swing.*;
 import javax.swing.Timer;
 import javax.swing.border.Border;
-import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
@@ -38,7 +38,7 @@ import java.util.regex.Pattern;
 public class GamePanel extends JPanel implements ActionListener, MouseListener {
 
     public static String startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-//    	public static String startFen = "5k2/6p1/8/4NPPP/4n2K/8/8/8 w - - 1 76 "; 8/7P/4B2K/8/1p3k2/8/P7/7r w - - 1 52
+    //    	public static String startFen = "5k2/6p1/8/4NPPP/4n2K/8/8/8 w - - 1 76 "; 8/7P/4B2K/8/1p3k2/8/P7/7r w - - 1 52
 //public static String startFen = "8/k7/3p4/p2P1p2/P2P1P2/8/8/K7 w - - 0 8";
     public static String lastMoveFen = startFen;
 
@@ -86,10 +86,33 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
 
     // main window
     boolean inMainWindow;
-    private int chooseTime = 5;
+    private double chooseTime = 10;
+    private boolean isZeroToOne = false;
+    double displayTime = 5;
     boolean notAdded = true;
 
     // buttons
+
+    JSlider timeRunning = new JSlider(0, 1, 1) {
+        @Override
+        public void updateUI() {
+            setUI(new CustomSliderUI(this, new Color(200, 200 ,200)));
+        }
+    };
+    JSlider minSlider = new JSlider(1, 65, 10) {
+        @Override
+        public void updateUI() {
+            setUI(new CustomSliderUI(this, new Color(200, 200 ,200)));
+        }
+    };
+    JSlider incrementSlider = new JSlider(0, 60, 0) {
+        @Override
+        public void updateUI() {
+            setUI(new CustomSliderUI(this, new Color(200, 200 ,200)));
+        }
+    };
+
+    static boolean isTimeRunning = true;
     static MyButton resignButton;
 
     static MyButton engineStartButton = new MyButton("Make Move");
@@ -123,7 +146,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
     public static boolean isPositionFrameAlive = false;
     public static boolean isLevelFrameAlive = false;
 
-    JCheckBoxMenuItem  playWithEngine;
+    JCheckBoxMenuItem playWithEngine;
     JCheckBoxMenuItem showMoves;
     JCheckBoxMenuItem openingBook;
     JCheckBoxMenuItem endGameTableBase;
@@ -148,8 +171,8 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
     static boolean animation = false;
     static boolean dragging;
     static int vel = 0;
-    static List<Piece> takenBlackPieces;
-    static List<Piece> takenWhitePieces;
+    static List<Piece> takenBlackPieces = new ArrayList<>();
+    static List<Piece> takenWhitePieces = new ArrayList<>();
     static boolean drawGameOver = true;
     private static final int[] startArrow = new int[2];
     private static final List<Integer[]> redSquares = new ArrayList<>();
@@ -175,11 +198,8 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
     public static int[] clickedSpot = null;
     public static String chessMoveList;
     public static List<Long> positions = new ArrayList<>();
-    static Hashtable<Long, Integer[]> transpositionTable = new Hashtable<>();
-    static List<Piece> blackPieces = ChessGame.blackPieces;
-    static List<Piece> whitePieces = ChessGame.whitePieces;
-    static List<Piece> tblackPieces = ChessGame.blackPieces;
-    static List<Piece> twhitePieces = ChessGame.whitePieces;
+    static List<Piece> blackPieces = new ArrayList<>();
+    static List<Piece> whitePieces = new ArrayList<>();
     public static Clip clip;
     public static long threatMap = 0L;
     Timer timer;
@@ -205,6 +225,50 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         this.addKeyListener(new myKeyAdapter(frame, this));
         this.setLayout(null);
 
+        timeRunning.setBackground(new Color(32, 32, 32));
+        timeRunning.setBounds(dim.width - dim.width / 4, dim.height / 4 + dim.height / 7, 50, 20);
+
+        ChangeListener l = arg0 -> {
+            boolean s = timeRunning.getValue() == 1;
+            isTimeRunning = s;
+            minSlider.setEnabled(s);
+            incrementSlider.setEnabled(s);
+            if (!s) {
+                minSlider.setUI(new CustomSliderUI(minSlider, Color.gray));
+                incrementSlider.setUI(new CustomSliderUI(incrementSlider, Color.gray));
+            }
+            else {
+                minSlider.setUI(new CustomSliderUI(minSlider,new Color(200, 200 ,200)));
+                incrementSlider.setUI(new CustomSliderUI(incrementSlider, new Color(200, 200 ,200)));
+            }
+        };
+
+        minSlider.setBounds(dim.width - dim.width / 5, dim.height / 2 + dim.height / 19, 180, 20);
+        minSlider.setBackground(new Color(32, 32, 32));
+        ChangeListener l1 = arg0 -> {
+            chooseTime = minSlider.getValue();
+            isZeroToOne = chooseTime < 6;
+            if (isZeroToOne)
+                displayTime = chooseTime / 10;
+            else
+                displayTime = chooseTime - 5;
+            increment = incrementSlider.getValue();
+
+        };
+
+        incrementSlider.setBounds(dim.width - dim.width / 5, dim.height / 2 + dim.height / 5 + dim.height / 30, 180, 20);
+        incrementSlider.setBackground(new Color(32, 32, 32));
+        incrementSlider.setMajorTickSpacing(5);
+
+
+        incrementSlider.addChangeListener(l1);
+        minSlider.addChangeListener(l1);
+        timeRunning.addChangeListener(l);
+
+        this.add(minSlider);
+        this.add(incrementSlider);
+        this.add(timeRunning);
+
         log = new engineLog();
 
         loadEngine1 = new JMenuItem("Load Engine1");
@@ -224,7 +288,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         engineVsEngine = new JCheckBoxMenuItem("Engine Vs Engine");
         engineVsEngine.addActionListener(this);
 
-        playWithEngine = new JCheckBoxMenuItem ("Play With Engine");
+        playWithEngine = new JCheckBoxMenuItem("Play With Engine");
         playWithEngine.addActionListener(this);
 
         showEngineLog = new JMenuItem("Engine Log");
@@ -233,14 +297,16 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         engineSwitch = new JMenuItem("Switch Places");
         engineSwitch.addActionListener(this);
 
-        showMoves = new JCheckBoxMenuItem ("Show Moves");
+        showMoves = new JCheckBoxMenuItem("Show Moves");
         showMoves.setState(true);
 
         openingBook = new JCheckBoxMenuItem("Use Opening Book");
         openingBook.setState(true);
 
         endGameTableBase = new JCheckBoxMenuItem("Use Table Base");
-        endGameTableBase.setState(true);
+        endGameTableBase.setState(false);
+        if (!ChessGame.isPython)
+            endGameTableBase.setEnabled(false);
 
         playLevel = new JMenuItem("Adjust Level");
         playLevel.addActionListener(this);
@@ -276,27 +342,25 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         positionMenu.add(fenToClipBoard);
 
         menuBar = new JMenuBar();
-        menuBar.setBounds(0,0, dim.width, 20);
+        menuBar.setBounds(0, 0, dim.width, 20);
         menuBar.add(optionMenu);
         menuBar.add(engineMenu);
         menuBar.add(positionMenu);
 
         this.add(menuBar);
         String path = readLineFromFile("activeEngine.txt");
-        if (!path.equals(""))
-        {
+        if (!path.equals("")) {
             if (isFileExists(path)) {
                 enginePath = path;
-                firstEngineName = enginePath.split("\\\\")[enginePath.split("\\\\").length-1];
+                firstEngineName = enginePath.split("\\\\")[enginePath.split("\\\\").length - 1];
                 loadEngine(1);
             }
         }
         String path2 = readLineFromFile("activeEngine2.txt");
-        if (!path2.equals(""))
-        {
+        if (!path2.equals("")) {
             if (isFileExists(path2)) {
                 enginePath2 = path2;
-                secondEngineName = enginePath2.split("\\\\")[enginePath2.split("\\\\").length-1];
+                secondEngineName = enginePath2.split("\\\\")[enginePath2.split("\\\\").length - 1];
                 loadEngine(2);
             }
         }
@@ -306,8 +370,6 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
     }
 
     public void startGame() {
-        takenBlackPieces = new ArrayList<>();
-        takenWhitePieces = new ArrayList<>();
         chessMoveList = "";
         movedFrom = null;
         movedTo = null;
@@ -335,10 +397,12 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         isInCheck = ChessGame.isInCheck(turn);
         inMainWindow = true;
         ActionListener l = arg0 -> {
-            if (!turn)
-                blackTime--;
-            else
-                whiteTime--;
+            if (isTimeRunning) {
+                if (!turn)
+                    blackTime--;
+                else
+                    whiteTime--;
+            }
             whiteSeconds = whiteTime % 60;
             whiteMinutes = (whiteTime - whiteSeconds) / 60;
             blackSeconds = blackTime % 60;
@@ -385,20 +449,20 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
             }
             if (whiteMinutes < 1 && increment < 10) {
                 if (whiteSeconds < 20 && increment == 0)
-                    times = 500;
+                    if (times > 500) times = 500;
                 if (whiteSeconds < 10 && increment == 0)
-                    times = 250;
+                    if (times > 250) times = 250;
                 if (whiteSeconds < 5 && increment == 0)
-                    times = 100;
+                    if (times > 100) times = 100;
             } else
                 timeBound = 10;
             if (blackMinutes < 1 && increment < 10) {
                 if (blackSeconds < 20 && increment == 0)
-                    times = 500;
+                    if (times > 500) times = 500;
                 if (blackSeconds < 10 && increment == 0)
-                    times = 250;
+                    if (times > 250) times = 250;
                 if (blackSeconds < 5 && increment == 0)
-                    times = 100;
+                    if (times > 100) times = 100;
             } else
                 timeBound = 10;
 
@@ -481,43 +545,30 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
     }
 
     private void drawPieces(Graphics g) {
-        if (!perspective) {
-            for (Piece p : twhitePieces) {
-                if (p.equals(currPiece) && (dragging || animation))
-                    continue;
-                if (p.equals(castlingRook) && animation) {
-                    g.drawImage(p.getImg(), castlingRook.lastPos[1] * unitSize + 2 + w, castlingRook.lastPos[0] * unitSize + 2 + h, null);
-                    continue;
-                }
-                g.drawImage(p.getImg(), p.getCol() * unitSize + 2 + w, p.getRow() * unitSize + 2 + h, null);
+        drawPiecesInList(g, whitePieces);
+        drawPiecesInList(g, blackPieces);
+    }
+    private void drawPiecesInList(Graphics g, List<Piece> pieces) {
+        for (Piece p : pieces) {
+            if (p.equals(currPiece) && (dragging || animation)) {
+                continue;
             }
-            for (Piece p : tblackPieces) {
-                if (p.equals(currPiece) && (dragging || animation))
-                    continue;
-                if (p.equals(castlingRook) && animation) {
-                    g.drawImage(p.getImg(), castlingRook.lastPos[1] * unitSize + 2 + w, castlingRook.lastPos[0] * unitSize + 2 + h, null);
-                    continue;
+            if (p.equals(castlingRook) && animation) {
+                int row = castlingRook.lastPos[0];
+                int col = castlingRook.lastPos[1];
+                if (perspective) {
+                    row = 7-row;
+                    col = 7-col;
                 }
-                g.drawImage(p.getImg(), p.getCol() * unitSize + 2 + w, p.getRow() * unitSize + 2 + h, null);
-            }
-        } else {
-            for (Piece p : twhitePieces) {
-                if (p.equals(currPiece) && (dragging || animation))
-                    continue;
-                if (p.equals(castlingRook) && animation) {
-                    g.drawImage(p.getImg(), (7 - castlingRook.lastPos[1]) * unitSize + 2 + w, (7 - castlingRook.lastPos[0]) * unitSize + 2 + h, null);
-                    continue;
+                g.drawImage(p.getImg(), col * unitSize + 2 + w, row * unitSize + 2 + h, null);
+            } else {
+                int row = p.getRow();
+                int col = p.getCol();
+                if (perspective) {
+                    row = 7-row;
+                    col = 7-col;
                 }
-                g.drawImage(p.getImg(), (7 - p.getCol()) * unitSize + 2 + w, (7 - p.getRow()) * unitSize + 2 + h, null);
-            }
-            for (Piece p : tblackPieces) {
-                if (p.equals(currPiece) && (dragging || animation))
-                    continue;
-                if (p.equals(castlingRook) && animation) {
-                    g.drawImage(p.getImg(), (7 - castlingRook.lastPos[1]) * unitSize + 2 + w, (7 - castlingRook.lastPos[0]) * unitSize + 2 + h, null);
-                    continue;
-                }
-                g.drawImage(p.getImg(), (7 - p.getCol()) * unitSize + 2 + w, (7 - p.getRow()) * unitSize + 2 + h, null);
+                g.drawImage(p.getImg(), col * unitSize + 2 + w, row * unitSize + 2 + h, null);
             }
         }
     }
@@ -538,7 +589,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
             this.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
             return;
         }
-        List<Piece> pieces = (!turn) ? tblackPieces : twhitePieces;
+        List<Piece> pieces = (!turn) ? blackPieces : whitePieces;
         boolean hand = false;
         for (Piece p : pieces) {
             if (p.getRow() == x && p.getCol() == y) {
@@ -677,7 +728,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                 (int) rect.getWidth() + 20,
                 (int) rect.getHeight());
 
-        if (!turn) {
+        if (!turn && isTimeRunning) {
             g.setColor(Color.white);
             if (blackMinutes == 0 && blackSeconds < 30)
                 g.setColor(Color.RED);
@@ -694,7 +745,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                 (int) rect.getWidth() + 20,
                 (int) rect.getHeight());
 
-        if (turn) {
+        if (turn && isTimeRunning) {
             g.setColor(Color.white);
             if (whiteMinutes == 0 && whiteSeconds < 30)
                 g.setColor(Color.RED);
@@ -709,8 +760,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         if (!perspective) {
             g.drawString("engine 1: " + firstEngineName, w, h + screenHeight + h / 2);
             g.drawString("engine 2: " + secondEngineName, w, h - h / 4);
-        }
-        else {
+        } else {
             g.drawString("engine 2: " + secondEngineName, w, h + screenHeight + h / 2);
             g.drawString("engine 1: " + firstEngineName, w, h - h / 4);
         }
@@ -799,43 +849,24 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         g.fillRect(w - (w / 10) * 4, height / 2 + height / 4 + 50, 50, 50);
 
         // choose time control
-        JSlider minSlider = new JSlider(1, 60, 5) {
-            @Override
-            public void updateUI() {
-                setUI(new CustomSliderUI(this));
-            }
-        };
-        JSlider incrementSlider = new JSlider(0, 60, 0) {
-            @Override
-            public void updateUI() {
-                setUI(new CustomSliderUI(this));
-            }
-        };
+
         g.setColor(Color.white.darker());
+        if (!isTimeRunning) {
+            g.setColor(Color.gray);
+        }
         g.drawString("Time Control", width / 2 + width / 4, height / 2);
-        minSlider.setBounds(width - width / 5, height / 2 + height / 19, 180, 20);
-        minSlider.setBackground(new Color(32, 32, 32));
+        String TR = String.valueOf(timeRunning.getValue());
+//        dim.width - dim.width / 4, dim.height / 2 + dim.height / 19, 50, 20
         g.setFont(new Font("Arial Black", Font.PLAIN, 20));
-        ChangeListener l = new ChangeListener() {
 
-            @Override
-            public void stateChanged(ChangeEvent arg0) {
-                chooseTime = minSlider.getValue();
-                increment = incrementSlider.getValue();
+        g.drawString(String.format("%.1f : minutes", displayTime), width - width / 5 + width / 50, height / 2 + height / 9);
+//        g.drawString(TR, width - width / 4 + width / 50, height / 2 + height / 9);
 
-            }
-        };
-
-        g.drawString(String.format("%02d : minutes", chooseTime), width - width / 5 + width / 50, height / 2 + height / 9);
-        minSlider.addChangeListener(l);
         g.setFont(new Font("Arial Black", 0, 40));
         g.drawString("Increment", width - width / 4 + width / 40, height / 2 + height / 5);
-        incrementSlider.setBounds(width - width / 5, height / 2 + height / 5 + height / 30, 180, 20);
-        incrementSlider.setBackground(new Color(32, 32, 32));
-        incrementSlider.setMajorTickSpacing(5);
+
         g.setFont(new Font("Arial Black", Font.PLAIN, 20));
         g.drawString(String.format("%02d : seconds", increment), width - width / 5 + width / 50, height / 2 + height / 4 + height / 20);
-        incrementSlider.addChangeListener(l);
         JLabel play = new JLabel("Play", JLabel.CENTER);
         play.setForeground(Color.white.darker());
         play.setVerticalAlignment(JLabel.BOTTOM);
@@ -846,8 +877,6 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         play.setFont(new Font("Arial Black", Font.PLAIN, 60));
         if (notAdded) {
             this.add(play);
-            this.add(minSlider);
-            this.add(incrementSlider);
             notAdded = false;
         }
     }
@@ -860,17 +889,16 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         for (int i = 0; i < arr.length; i++) {
             if ((i + 1) % 2 == 1) {
                 String space = "&nbsp;";
-                String num = (i / 2 + 1)+"";
-                String s = new String(new char[3-num.length()]).replace("\0", "*");
+                String num = (i / 2 + 1) + "";
+                String s = new String(new char[3 - num.length()]).replace("\0", "*");
                 String word = num + ":" + s + arr[i];
-                space = new String(new char[12-word.length()]).replace("\0", space);
+                space = new String(new char[12 - word.length()]).replace("\0", space);
                 word = word.replace("*", "&nbsp;");
                 drawMoveList += "&nbsp;" + word + space;
-            }
-            else
+            } else
                 drawMoveList += arr[i] + "<br/>";
         }
-        movesBoard.setText(drawMoveList+"</html>");
+        movesBoard.setText(drawMoveList + "</html>");
         if (toScroll > 0) {
             vertical.setValue(vertical.getMaximum());
             toScroll -= 1;
@@ -880,9 +908,9 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
     private void drawTakenPieces(Graphics2D g) {
         int w = dim.width / 2 + screenWidth / 2;
         int x = w + w / 35;
-        int y = dim.height/2 + h + h/5;
+        int y = dim.height / 2 + h + h / 5;
         if (perspective)
-            y = dim.height/2 - h - h/5;
+            y = dim.height / 2 - h - h / 5;
         int whitePoints = 0;
         Type lastType = Type.PAWN;
         for (Piece p : takenBlackPieces) {
@@ -897,9 +925,9 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         }
         int sumOfBlackX = x;
         x = w + w / 35;
-        y = dim.height/2 - h - h/5;
+        y = dim.height / 2 - h - h / 5;
         if (perspective)
-            y = dim.height/2 + h + h/5;
+            y = dim.height / 2 + h + h / 5;
         int blackPoints = 0;
         for (Piece p : takenWhitePieces) {
             if (p == takenWhitePieces.get(0))
@@ -917,15 +945,15 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         int points = whitePoints - blackPoints;
         if (points > 0) {
             x = sumOfBlackX + 20;
-            y = dim.height/2 + h + h/5 + 14 + 8;
+            y = dim.height / 2 + h + h / 5 + 14 + 8;
             if (perspective)
-                y = dim.height/2 - h - h/5 + 14 + 8;
+                y = dim.height / 2 - h - h / 5 + 14 + 8;
             g.drawString("+" + Math.abs(points), x, y);
         } else if (points < 0) {
             x = sumOfWhiteX + 20;
-            y =dim.height/2 - h - h/5 + 14 + 8;
+            y = dim.height / 2 - h - h / 5 + 14 + 8;
             if (perspective)
-                y = dim.height/2 + h + h/5 + 14 + 8;
+                y = dim.height / 2 + h + h / 5 + 14 + 8;
             g.drawString("+ " + Math.abs(points), x, y);
         }
     }
@@ -941,14 +969,13 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         FontMetrics metrics = getFontMetrics(g.getFont());
         g.drawString("Game Over", (screenWidth - metrics.stringWidth("Game Over")) / 2 + w, g.getFont().getSize() + 250);
         String won = (!turn) ? "White" : "Black";
-        if (won.equals("White") && !chessMoveList.contains("1-0")) {
-            chessMoveList += "1-0";
-            createYesNoButton("NO", false, w + 170, h + 375, panel, true);
-            createYesNoButton("YES", true, w + 390, h + 375, panel, true);
-            resignButton.setEnabled(false);
-            changePersButton.setEnabled(false);
-        } else if (won.equals("Black") && !chessMoveList.contains("0-1")) {
-            chessMoveList += "0-1";
+        List<Component> componentList = Arrays.asList(panel.getComponents());
+        if (!componentList.contains(resignYesButton)) {
+            if (won.equals("White")) {
+                chessMoveList += "1-0";
+            } else {
+                chessMoveList += "0-1";
+            }
             createYesNoButton("NO", false, w + 170, h + 375, panel, true);
             createYesNoButton("YES", true, w + 390, h + 375, panel, true);
             resignButton.setEnabled(false);
@@ -1102,14 +1129,16 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == loadEngine1) {
             JFileChooser fileChooser = new JFileChooser();
-            FileNameExtensionFilter filter = new FileNameExtensionFilter("EXE File","exe");
+            FileNameExtensionFilter filter = new FileNameExtensionFilter("EXE File", "exe");
             fileChooser.setFileFilter(filter);
+            File workingDirectory = new File(System.getProperty("user.dir"));
+            fileChooser.setCurrentDirectory(workingDirectory);
             int i = fileChooser.showOpenDialog(this);
 
             if (i == JFileChooser.APPROVE_OPTION) {
                 File file = fileChooser.getSelectedFile();
                 enginePath = file.getPath();
-                firstEngineName = enginePath.split("\\\\")[enginePath.split("\\\\").length-1];
+                firstEngineName = enginePath.split("\\\\")[enginePath.split("\\\\").length - 1];
                 if (engine1 != null)
                     engine1.close();
                 loadEngine(1);
@@ -1117,14 +1146,14 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         }
         if (e.getSource() == loadEngine2) {
             JFileChooser fileChooser = new JFileChooser();
-            FileNameExtensionFilter filter = new FileNameExtensionFilter("EXE File","exe");
+            FileNameExtensionFilter filter = new FileNameExtensionFilter("EXE File", "exe");
             fileChooser.setFileFilter(filter);
             int i = fileChooser.showOpenDialog(this);
 
             if (i == JFileChooser.APPROVE_OPTION) {
                 File file = fileChooser.getSelectedFile();
                 enginePath2 = file.getPath();
-                secondEngineName = enginePath2.split("\\\\")[enginePath2.split("\\\\").length-1];
+                secondEngineName = enginePath2.split("\\\\")[enginePath2.split("\\\\").length - 1];
                 if (engine2 != null)
                     engine2.close();
                 loadEngine(2);
@@ -1153,8 +1182,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         if (engine1 == null || engine2 == null) {
             engineVsEngine.setEnabled(false);
             engineVsEngine.setState(false);
-        }
-        else
+        } else
             engineVsEngine.setEnabled(true);
         if (e.getSource() == playWithEngine) engineVsEngine.setState(false);
         if (e.getSource() == engineVsEngine) playWithEngine.setState(false);
@@ -1168,8 +1196,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
             switchEngines();
         }
 
-        if (e.getSource() == fenFromClipBoard)
-        {
+        if (e.getSource() == fenFromClipBoard) {
             try {
                 String data = (String) Toolkit.getDefaultToolkit()
                         .getSystemClipboard().getData(DataFlavor.stringFlavor);
@@ -1220,15 +1247,13 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                         if (!positionFrame.enPassant.getText().equals("")) {
                             setEnPassantSquare(positionFrame.enPassant.getText());
                         }
-                    }
-                    else {
+                    } else {
                         board = positionFromFen(startFen);
                         turn = true;
                         ChessGame.updateBoards(turn);
                         ChessGame.updateThreats(!turn);
                     }
-                }
-                else {
+                } else {
                     board = positionFromFen(startFen);
                     turn = true;
                     Piece.castlingRights();
@@ -1246,10 +1271,16 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
             if (!isLevelFrameAlive) {
                 if (levelFrame.isConfirmed) {
                     if (levelFrame.depth.isSelected()) {
-                        limitedDepth = (int)levelFrame.spinner.getValue();
-                    }
-                    else if (levelFrame.time.isSelected()) {
-                        moveTime = (int)levelFrame.spinner.getValue();
+                        limitedDepth = (int) levelFrame.spinner.getValue();
+                    } else if (levelFrame.time.isSelected()) {
+                        if (levelFrame.isInt()) {
+                            moveTime = (int) levelFrame.spinner.getValue();
+                            times = 1000;
+                        }
+                        else {
+                            moveTime = 1;
+                            times =  (int)((double) levelFrame.spinnerS.getValue()*1000);
+                        }
                         limitedDepth = 0;
                     }
                 }
@@ -1310,8 +1341,8 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                 }
                 // black just moved
                 else {
-                    if (board[3][i%8].getPiece() != null && !board[3][i%8].getPiece().getColor() && board[3][i%8].getPiece().type == Type.PAWN) {
-                        enPassant = new int[]{2, i%8};
+                    if (board[3][i % 8].getPiece() != null && !board[3][i % 8].getPiece().getColor() && board[3][i % 8].getPiece().type == Type.PAWN) {
+                        enPassant = new int[]{2, i % 8};
                         break;
                     }
                 }
@@ -1329,13 +1360,16 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         if (openingBook.isSelected()) {
             int moveNum = Integer.parseInt(lastMoveFen.split(" ")[5]);
             if (moveNum == 1 && turn) {
-                int res = openingMoves("e4", true, 0);
+                int res = moveFromChessNotation("e4", true, 0);
                 if (res == 1)
                     return;
             }
             if (moveNum < 7) {
                 try {
-                    File myObj = new File(System.getProperty("user.dir") + "\\GMGames.txt");
+                    InputStream resource = GamePanel.class.getResourceAsStream("GMGames.txt");
+                    if (resource == null)
+                        throw new FileNotFoundException();
+                    BufferedReader  myObj = new BufferedReader (new InputStreamReader(resource));
                     Scanner myReader = new Scanner(myObj);
                     while (myReader.hasNextLine()) {
                         String data = myReader.nextLine();
@@ -1352,8 +1386,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                     }
                     myReader.close();
                 } catch (FileNotFoundException e) {
-                    System.out.println("An error occurred.");
-                    e.printStackTrace();
+                    System.out.println("File Not Found!");
                 }
                 Random rand = new Random();
                 if (!moves.isEmpty()) {
@@ -1368,19 +1401,18 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                             case 'q' -> pro = 4;
                         }
                     }
-                    int res = openingMoves(randomMove, turn, pro);
+                    int res = moveFromChessNotation(randomMove, turn, pro);
                     if (res == 0) moves.clear();
                 }
             }
         }
         int compMin = (turn) ? whiteMinutes : blackMinutes;
         int compSec = (turn) ? whiteSeconds : blackSeconds;
-        if (whitePieces.size()+blackPieces.size() <= 7 && !(compMin == 0 && compSec <= 30) && tableBase && endGameTableBase.isSelected()) {
+        if (whitePieces.size() + blackPieces.size() <= 7 && !(compMin == 0 && compSec <= 30) && tableBase && endGameTableBase.isSelected()) {
             isCompDone = false;
             if (!isGameEnded)
                 playTableBase();
-        }
-        else if (moves.isEmpty()) {
+        } else if (moves.isEmpty()) {
             isCompDone = false;
             if (!isGameEnded)
                 startThinking();
@@ -1394,11 +1426,12 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
             protected Void doInBackground() {
                 try {
                     runPython(lastMoveFen, turn);
-                } catch (IOException e) {
+                } catch (IOException | URISyntaxException e) {
                     e.printStackTrace();
                 }
                 return null;
             }
+
             @Override
             protected void done() {
                 isCompDone = true;
@@ -1426,7 +1459,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                         case 'q' -> pro = 4;
                     }
                 }
-                int r = openingMoves(m[0], turn, pro);
+                int r = moveFromChessNotation(m[0], turn, pro);
                 if (r == 0) {
                     tableBase = false;
                     computerMove();
@@ -1435,7 +1468,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                 DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
                 LocalDateTime now = LocalDateTime.now();
                 System.out.println(dtf.format(now) + " ---> play with table base");
-                System.out.println(dtf.format(now) + " <--- " + m[0] +" "+res[0]);
+                System.out.println(dtf.format(now) + " <--- " + m[0] + " " + res[0]);
             }
         };
         worker.execute();
@@ -1507,14 +1540,11 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                     movedFrom = new Integer[]{p.getRow(), p.getCol()};
                     movedTo = compMove;
                     currPiece = p;
-//					if (!computersColor) {
-//						fullMoves++;
-//						halfMoves++;
-//					}
+
                     if (board[compMove[0]][compMove[1]].isFull() || currPiece.type == Type.PAWN) {
                         halfMoves = 0;
                     }
-                    chessMoveList += moveToChessNotation(compMove, currPiece , promote) + " ";
+                    chessMoveList += moveToChessNotation(compMove, currPiece, promote) + " ";
                     p.move(board, compMove[0], compMove[1], true, promote);
                     if (turn)
                         whiteTime += increment;
@@ -1530,7 +1560,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                     positions.add(Zobrist.getZobristHash(turn, wcks, wcqs, bcks, bcqs));
                     isInCheck = ChessGame.isInCheck(!p.getColor());
                     stalemate = ChessGame.getAllMoves(!p.getColor()).isEmpty();
-                    isGameEnded = ChessGame.isStaleMate(turn);
+                    isGameEnded = ChessGame.isStaleMate();
                     if (isGameEnded)
                         resignButton.setText("Exit");
                     GamePanel.animation = true;
@@ -1538,7 +1568,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                         clip = p.sound("chessCheckSound.wav");
                         chessMoveList = chessMoveList.substring(0, chessMoveList.length() - 1) + "+ ";
                     }
-                    playerMoveList.add(new Object[]{lastMoveFen, movedFrom, movedTo, whiteTime, blackTime, turn});
+                    playerMoveList.add(new Object[]{lastMoveFen, movedFrom, movedTo, whiteTime, blackTime, turn, stalemate});
                     moveListCounter++;
                     if (isGameEnded || stalemate) {
                         if (isInCheck)
@@ -1550,8 +1580,6 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                     clip.start();
                 }
                 isCompDone = true;
-                twhitePieces = ChessGame.copy(whitePieces);
-                tblackPieces = ChessGame.copy(blackPieces);
                 ChessGame.updateThreats(!turn);
                 ChessGame.countMoves = 0;
                 tableBase = true;
@@ -1575,10 +1603,10 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         public void keyPressed(KeyEvent e) {
             switch (e.getKeyCode()) {
                 case KeyEvent.VK_LEFT:
-                    if (!animation) {
+                    if (!animation && resignButton.isEnabled()) {
                         if (playerMoveList.size() > 1 && moveListCounter > 1) {
                             moveListCounter--;
-                            Object[] last = playerMoveList.get(moveListCounter-1);
+                            Object[] last = playerMoveList.get(moveListCounter - 1);
                             movedFrom = (Integer[]) last[1];
                             movedTo = (Integer[]) last[2];
                             board = positionFromFen((String) last[0]);
@@ -1588,6 +1616,11 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                             whiteTime = (int) last[3];
                             blackTime = (int) last[4];
                             panel.moves = null;
+                            isGameEnded = false;
+                            isCompDone = true;
+                            stalemate = false;
+                            drawGameOver = true;
+                            resignButton.setText("Resign");
                         }
                         break;
                     }
@@ -1602,9 +1635,14 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                             board = positionFromFen((String) last[0]);
                             ChessGame.updateBoards(turn);
                             ChessGame.updateThreats(!turn);
+                            isInCheck = ChessGame.isInCheck(turn);
                             whiteTime = (int) last[3];
                             blackTime = (int) last[4];
                             panel.moves = null;
+                            if ((boolean)last[6]) {
+                                stalemate = true;
+                                isGameEnded = true;
+                            }
                         }
                         break;
                     }
@@ -1627,7 +1665,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                     frame.pack();
                     frame.setVisible(true);
                     frame.setLocationRelativeTo(null);
-					break;
+                    break;
             }
         }
     }
@@ -1645,10 +1683,10 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         takenBlackPieces = new ArrayList<>();
         takenWhitePieces = new ArrayList<>();
         positions.clear();
-        transpositionTable.clear();
         playerMoveList.clear();
         moveListCounter = 0;
-        chooseTime = 5;
+        chooseTime = 10;
+        displayTime = 5;
         lastMoveFen = startFen;
         chessMoveList = "";
         movedFrom = null;
@@ -1663,6 +1701,9 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         this.add(menuBar);
         setPos.setEnabled(true);
         times = 1000;
+        this.add(minSlider);
+        this.add(incrementSlider);
+        this.add(timeRunning);
     }
 
     private void createYesNoButton(String str, boolean yes, int x, int y, JPanel panel, boolean over) {
@@ -1766,8 +1807,11 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         engineStartButton = new MyButton("Make Move");
         ActionListener l = e -> {
             if (e.getSource() == engineStartButton) {
-                if (isCompDone)
+                if (isCompDone) {
+                    currPiece = null;
+                    moves = null;
                     computerMove();
+                }
             }
         };
         engineStartButton.addActionListener(l);
@@ -1778,13 +1822,12 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         engineStartButton.setBorder(BorderFactory.createLineBorder(Color.white.darker(), 2));
         engineStartButton.setForeground(Color.white);
         engineStartButton.setFont(new Font("Arial Black", Font.PLAIN, 15));
-        engineStartButton.setBounds(w+screenWidth + screenWidth/7, h + screenHeight - 50, 100, 50);
+        engineStartButton.setBounds(w + screenWidth + screenWidth / 7, h + screenHeight - 50, 100, 50);
         if (enginePath.equals("") && enginePath2.equals(""))
             engineStartButton.setEnabled(false);
 
         this.add(engineStartButton);
     }
-
     private void createMovesBoard() {
         movesBoard = new JLabel();
         movesBoard.setForeground(Color.white);
@@ -1803,6 +1846,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         this.add(scrollPane);
     }
 
+    // Handles all the buttons on the main screen
     private void getClickedButtonOnMainWindow(MouseEvent e) {
         int height = (int) dim.getHeight();
         int width = (int) dim.getWidth();
@@ -1842,13 +1886,22 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         if (e.getX() > width - w / 2 - w / 4 && e.getX() < width - w / 2 - w / 4 + 165 && e.getY() > height / 7 && e.getY() < height / 7 + 80) {
             running = true;
             inMainWindow = false;
-            whiteTime = chooseTime * 60;
-            blackTime = chooseTime * 60;
+
+            if (chooseTime < 6) {
+                whiteTime = (int)chooseTime * 10;
+                blackTime = (int)chooseTime * 10;
+            }
+            else {
+                chooseTime -= 5;
+                whiteTime = (int)chooseTime * 60;
+                blackTime = (int)chooseTime * 60;
+            }
             whiteSeconds = whiteTime % 60;
             whiteMinutes = (whiteTime - whiteSeconds) / 60;
             blackSeconds = blackTime % 60;
             blackMinutes = (blackTime - blackSeconds) / 60;
-            playerMoveList.add(new Object[]{lastMoveFen, movedFrom, movedTo, whiteTime, blackTime, true});
+
+            playerMoveList.add(new Object[]{lastMoveFen, movedFrom, movedTo, whiteTime, blackTime, true, stalemate});
             moveListCounter = 1;
             this.removeAll();
             this.add(menuBar);
@@ -1875,18 +1928,20 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         }
     }
 
+    // This method shortens the player's move list and the string representation of all moves in the game
     public void shortenLists() {
         while (playerMoveList.size() > moveListCounter) {
-            playerMoveList.remove(playerMoveList.size()-1);
+            playerMoveList.remove(playerMoveList.size() - 1);
         }
         String tempMoves = "";
         String[] arr = chessMoveList.split(" ");
-        for (int i = 0; i < moveListCounter-1; i++) {
+        for (int i = 0; i < moveListCounter - 1; i++) {
             tempMoves += arr[i] + " ";
         }
         chessMoveList = tempMoves;
     }
 
+    // Puts the pieces on the board when setting a new position
     private void putPieces(MouseEvent e) throws IOException {
         int y = (e.getX() - w) / unitSize;
         int x = (e.getY() - h) / unitSize;
@@ -1905,61 +1960,44 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                     board[x][y].makeEmpty();
                     if (p.getColor()) whitePieces.remove(p);
                     else blackPieces.remove(p);
-                    twhitePieces = ChessGame.copy(whitePieces);
-                    tblackPieces = ChessGame.copy(blackPieces);
                 }
                 if (positionFrame.isPawnPressed) {
                     Pawn p = new Pawn(x, y, color, 100);
                     board[x][y].assignPiece(p);
                     pieces.add(p);
-                    if (color) twhitePieces = ChessGame.copy(whitePieces);
-                    else tblackPieces = ChessGame.copy(blackPieces);
                 }
                 if (positionFrame.isKnightPressed) {
                     Knight p = new Knight(x, y, color, 320);
                     board[x][y].assignPiece(p);
                     pieces.add(p);
-                    if (color) twhitePieces = ChessGame.copy(whitePieces);
-                    else tblackPieces = ChessGame.copy(blackPieces);
                 }
                 if (positionFrame.isBishopPressed) {
                     Bishop p = new Bishop(x, y, color, 330);
                     board[x][y].assignPiece(p);
                     pieces.add(p);
-                    if (color) twhitePieces = ChessGame.copy(whitePieces);
-                    else tblackPieces = ChessGame.copy(blackPieces);
                 }
                 if (positionFrame.isRookPressed) {
                     Rook p = new Rook(x, y, color, 500);
                     board[x][y].assignPiece(p);
                     pieces.add(p);
-                    if (color) twhitePieces = ChessGame.copy(whitePieces);
-                    else tblackPieces = ChessGame.copy(blackPieces);
                 }
                 if (positionFrame.isQueenPressed) {
                     Queen p = new Queen(x, y, color, 950);
                     board[x][y].assignPiece(p);
                     pieces.add(p);
-                    if (color) twhitePieces = ChessGame.copy(whitePieces);
-                    else tblackPieces = ChessGame.copy(blackPieces);
                 }
                 if (positionFrame.isKingPressed) {
                     King p = new King(x, y, color, 20000);
                     board[x][y].assignPiece(p);
                     pieces.add(p);
-                    if (color) twhitePieces = ChessGame.copy(whitePieces);
-                    else tblackPieces = ChessGame.copy(blackPieces);
                 }
             }
-        }
-        else if (e.getButton() == MouseEvent.BUTTON2) {
+        } else if (e.getButton() == MouseEvent.BUTTON2) {
             if (board[x][y].isFull()) {
                 Piece p = board[x][y].getPiece();
                 board[x][y].makeEmpty();
                 if (p.getColor()) whitePieces.remove(p);
                 else blackPieces.remove(p);
-                twhitePieces = ChessGame.copy(whitePieces);
-                tblackPieces = ChessGame.copy(blackPieces);
             }
         }
     }
@@ -1983,8 +2021,6 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
             y = 7 - (e.getX() - w) / unitSize;
             x = 7 - (e.getY() - h) / unitSize;
         }
-//        if (currPiece != null && movedFrom != null && movedTo != null && (!turn && !computersColor || turn && computersColor) && !animation && isCompDone)
-//            animation = true;
 
         if (x < 8 && x > -1 && y < 8 && y > -1) {
             if (isCompDone && board[x][y].isFull() && board[x][y].getPiece().getColor() == turn && !animation) {
@@ -2049,8 +2085,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                 }
             if (startArrow[0] != endx || startArrow[1] != endy) {
                 arrows.add(a);
-            }
-            else {
+            } else {
                 Integer[] arr = new Integer[]{y, x};
                 for (Integer[] square : redSquares) {
                     if (square[0] == arr[0] && square[1] == arr[1]) {
@@ -2092,8 +2127,6 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                         whiteTime += increment;
                     else
                         blackTime += increment;
-                    twhitePieces = ChessGame.copy(whitePieces);
-                    tblackPieces = ChessGame.copy(blackPieces);
                     whiteSeconds = whiteTime % 60;
                     whiteMinutes = (whiteTime - whiteSeconds) / 60;
                     blackSeconds = blackTime % 60;
@@ -2104,7 +2137,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                     positions.add(Zobrist.getZobristHash(turn, wcks, wcqs, bcks, bcqs));
                     isInCheck = ChessGame.isInCheck(!currPiece.getColor());
                     stalemate = ChessGame.getAllMoves(!currPiece.getColor()).isEmpty();
-                    isGameEnded = ChessGame.isStaleMate(turn);
+                    isGameEnded = ChessGame.isStaleMate();
                     if (playWithEngine.isSelected() && (engine1 != null || engine2 != null))
                         enginePlay = true;
                     if (m[0] == clickedSpot[0] && m[1] == clickedSpot[1])
@@ -2114,16 +2147,14 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                         try {
                             turn = !turn;
                             choosePiece = new ChoosePieceFrame(turn);
-                            Pawn p = (Pawn)currPiece;
+                            Pawn p = (Pawn) currPiece;
                             p.promote(board, choosePiece.pressed);
                             isInCheck = ChessGame.isInCheck(!currPiece.getColor());
                             stalemate = ChessGame.getAllMoves(!currPiece.getColor()).isEmpty();
-                            isGameEnded = ChessGame.isStaleMate(turn);
+                            isGameEnded = ChessGame.isStaleMate();
                             turn = !turn;
                             lastMoveFen = CurrentFen();
                             turn = !turn;
-                            twhitePieces = ChessGame.copy(whitePieces);
-                            tblackPieces = ChessGame.copy(blackPieces);
                             int pr = (choosePiece != null) ? choosePiece.pressed : 0;
                             chessMoveList = chessMoveList.substring(0, chessMoveList.length() - 1);
                             switch (pr) {
@@ -2143,7 +2174,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                         clip = currPiece.sound("chessCheckSound.wav");
                         chessMoveList = chessMoveList.substring(0, chessMoveList.length() - 1) + "+ ";
                     }
-                    playerMoveList.add(new Object[]{lastMoveFen, movedFrom, movedTo, whiteTime, blackTime, !computersColor});
+                    playerMoveList.add(new Object[]{lastMoveFen, movedFrom, movedTo, whiteTime, blackTime, !computersColor, stalemate});
                     moveListCounter++;
                     if (isGameEnded || stalemate) {
                         if (isInCheck)
@@ -2168,8 +2199,6 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
     public static Spot[][] positionFromFen(String fen) {
         whitePieces = new ArrayList<>();
         blackPieces = new ArrayList<>();
-        twhitePieces = new ArrayList<>();
-        tblackPieces = new ArrayList<>();
         board = ChessGame.generate_Board(8);
         String[] sections = fen.split(" ");
         ChessGame.WP = 0L;
@@ -2184,6 +2213,9 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         ChessGame.BR = 0L;
         ChessGame.BQ = 0L;
         ChessGame.BK = 0L;
+
+        int whitePawns = 0, whiteKnights = 0, whiteBishops = 0, whiteRooks = 0, whiteQueens = 0;
+        int blackPawns = 0, blackKnights = 0, blackBishops = 0, blackRooks = 0, blackQueens = 0;
 
         int file = 0;
         int rank = 0;
@@ -2204,48 +2236,64 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                     Piece piece = null;
                     try {
                         switch (Character.toLowerCase(symbol)) {
-                            case 'p':
+                            case 'p' -> {
                                 piece = new Pawn(rank, file, pieceColor, 100);
-                                if (pieceColor)
+                                if (pieceColor) {
                                     ChessGame.WP += convertStringToBitboard(Binary);
-                                else
+                                    whitePawns++;
+                                } else {
                                     ChessGame.BP += convertStringToBitboard(Binary);
-                                break;
-                            case 'k':
+                                    blackPawns++;
+
+                                }
+                            }
+                            case 'k' -> {
                                 piece = new King(rank, file, pieceColor, 20000);
                                 if (pieceColor)
                                     ChessGame.WK += convertStringToBitboard(Binary);
                                 else
                                     ChessGame.BK += convertStringToBitboard(Binary);
-                                break;
-                            case 'n':
+                            }
+                            case 'n' -> {
                                 piece = new Knight(rank, file, pieceColor, 320);
-                                if (pieceColor)
+                                if (pieceColor) {
                                     ChessGame.WN += convertStringToBitboard(Binary);
-                                else
+                                    whiteKnights++;
+                                } else {
                                     ChessGame.BN += convertStringToBitboard(Binary);
-                                break;
-                            case 'b':
+                                    blackKnights++;
+                                }
+                            }
+                            case 'b' -> {
                                 piece = new Bishop(rank, file, pieceColor, 330);
-                                if (pieceColor)
+                                if (pieceColor) {
                                     ChessGame.WB += convertStringToBitboard(Binary);
-                                else
+                                    whiteBishops++;
+                                } else {
                                     ChessGame.BB += convertStringToBitboard(Binary);
-                                break;
-                            case 'r':
+                                    blackBishops++;
+                                }
+                            }
+                            case 'r' -> {
                                 piece = new Rook(rank, file, pieceColor, 500);
-                                if (pieceColor)
+                                if (pieceColor) {
                                     ChessGame.WR += convertStringToBitboard(Binary);
-                                else
+                                    whiteRooks++;
+                                } else {
                                     ChessGame.BR += convertStringToBitboard(Binary);
-                                break;
-                            case 'q':
+                                    blackRooks++;
+                                }
+                            }
+                            case 'q' -> {
                                 piece = new Queen(rank, file, pieceColor, 950);
-                                if (pieceColor)
+                                if (pieceColor) {
                                     ChessGame.WQ += convertStringToBitboard(Binary);
-                                else
+                                    whiteQueens++;
+                                } else {
                                     ChessGame.BQ += convertStringToBitboard(Binary);
-                                break;
+                                    blackQueens++;
+                                }
+                            }
                         }
                     } catch (Exception e) {
                         System.out.println("something went wrong!" + errCount);
@@ -2262,6 +2310,82 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                 }
             }
         }
+        takenWhitePieces = new ArrayList<>();
+        takenBlackPieces = new ArrayList<>();
+
+        for (int i = 8 - whitePawns; i > 0; i--) {
+            try {
+                takenWhitePieces.add(new Pawn(0, 0, true, 100));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = 2 - whiteKnights; i > 0; i--) {
+            try {
+                takenWhitePieces.add(new Knight(0, 0, true, 320));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = 2 - whiteBishops; i > 0; i--) {
+            try {
+                takenWhitePieces.add(new Bishop(0, 0, true, 330));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = 2 - whiteRooks; i > 0; i--) {
+            try {
+                takenWhitePieces.add(new Rook(0, 0, true, 500));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = 1 - whiteQueens; i > 0; i--) {
+            try {
+                takenWhitePieces.add(new Queen(0, 0, true, 900));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        for (int i = 8 - blackPawns; i > 0; i--) {
+            try {
+                takenBlackPieces.add(new Pawn(0, 0, false, 100));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = 2 - blackKnights; i > 0; i--) {
+            try {
+                takenBlackPieces.add(new Knight(0, 0, false, 320));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = 2 - blackBishops; i > 0; i--) {
+            try {
+                takenBlackPieces.add(new Bishop(0, 0, false, 330));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = 2 - blackRooks; i > 0; i--) {
+            try {
+                takenBlackPieces.add(new Rook(0, 0, false, 500));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = 1 - blackQueens; i > 0; i--) {
+            try {
+                takenBlackPieces.add(new Queen(0, 0, false, 900));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+
         if (sections.length > 1)
             turn = sections[1].equalsIgnoreCase("w");
         else
@@ -2286,8 +2410,6 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
 
         halfMoves = Integer.parseInt(sections[4]);
         fullMoves = Integer.parseInt(sections[5]);
-        twhitePieces = ChessGame.copy(whitePieces);
-        tblackPieces = ChessGame.copy(blackPieces);
 
         boolean c = true;
         Type[] types = {Type.PAWN, Type.KNIGHT, Type.BISHOP, Type.ROOK, Type.QUEEN, Type.KING};
@@ -2303,6 +2425,10 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
     // Get the fen string of the current position
     public static String CurrentFen() {
         StringBuilder fen = new StringBuilder();
+
+        int whitePawns = 0, whiteKnights = 0, whiteBishops = 0, whiteRooks = 0, whiteQueens = 0;
+        int blackPawns = 0, blackKnights = 0, blackBishops = 0, blackRooks = 0, blackQueens = 0;
+
         for (int rank = 0; rank < 8; rank++) {
             int numEmptyFiles = 0;
             for (int file = 0; file < 8; file++) {
@@ -2316,24 +2442,32 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                     Type pieceType = piece.type;
                     char pieceChar = ' ';
                     switch (pieceType) {
-                        case ROOK:
+                        case ROOK -> {
                             pieceChar = 'R';
-                            break;
-                        case KNIGHT:
+                            if (isBlack) blackRooks++;
+                            else whiteRooks++;
+                        }
+                        case KNIGHT -> {
                             pieceChar = 'N';
-                            break;
-                        case BISHOP:
+                            if (isBlack) blackKnights++;
+                            else whiteKnights++;
+                        }
+                        case BISHOP -> {
                             pieceChar = 'B';
-                            break;
-                        case QUEEN:
+                            if (isBlack) blackBishops++;
+                            else whiteBishops++;
+                        }
+                        case QUEEN -> {
                             pieceChar = 'Q';
-                            break;
-                        case KING:
-                            pieceChar = 'K';
-                            break;
-                        case PAWN:
+                            if (isBlack) blackQueens++;
+                            else whiteQueens++;
+                        }
+                        case KING -> pieceChar = 'K';
+                        case PAWN -> {
                             pieceChar = 'P';
-                            break;
+                            if (isBlack) blackPawns++;
+                            else whitePawns++;
+                        }
                     }
                     fen.append((isBlack) ? Character.toLowerCase(pieceChar) : pieceChar);
                 } else {
@@ -2384,7 +2518,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                     fen.append(colMapping.get(pa.getCol()));
                     fen.append(8 - pa.getRow() - 1);
                 }
-        } else if (currPiece != null){
+        } else if (currPiece != null) {
             if (currPiece.type == Type.PAWN && movedFrom != null && movedTo != null)
                 if (movedFrom[0] == 1 && movedTo[0] == 3 && currPiece.lastPos[0] == 1 && currPiece.getRow() == 3) {
                     added = true;
@@ -2410,9 +2544,85 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         // Full-move count (should be one at start, and increase after each move by black)
         fen.append(' ');
         fen.append(fullMoves);
+        takenWhitePieces = new ArrayList<>();
+        takenBlackPieces = new ArrayList<>();
+
+        for (int i = 8 - whitePawns; i > 0; i--) {
+            try {
+                takenWhitePieces.add(new Pawn(0, 0, true, 100));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = Math.max(2, blackKnights) - whiteKnights; i > 0; i--) {
+            try {
+                takenWhitePieces.add(new Knight(0, 0, true, 320));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = Math.max(2, blackBishops) - whiteBishops; i > 0; i--) {
+            try {
+                takenWhitePieces.add(new Bishop(0, 0, true, 330));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = Math.max(2, blackRooks) - whiteRooks; i > 0; i--) {
+            try {
+                takenWhitePieces.add(new Rook(0, 0, true, 500));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = Math.max(1, blackQueens) - whiteQueens; i > 0; i--) {
+            try {
+                takenWhitePieces.add(new Queen(0, 0, true, 900));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        for (int i = 8 - blackPawns; i > 0; i--) {
+            try {
+                takenBlackPieces.add(new Pawn(0, 0, false, 100));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = Math.max(2, whiteKnights) - blackKnights; i > 0; i--) {
+            try {
+                takenBlackPieces.add(new Knight(0, 0, false, 320));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = Math.max(2, whiteBishops) - blackBishops; i > 0; i--) {
+            try {
+                takenBlackPieces.add(new Bishop(0, 0, false, 330));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = Math.max(2, whiteRooks) - blackRooks; i > 0; i--) {
+            try {
+                takenBlackPieces.add(new Rook(0, 0, false, 500));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        for (int i = Math.max(1, whiteQueens) - blackQueens; i > 0; i--) {
+            try {
+                takenBlackPieces.add(new Queen(0, 0, false, 900));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         return fen.toString();
     }
 
+    // Converts a move from the format "piece, [row, col]" to Chess Notation
     public static String moveToChessNotation(Integer[] move, Piece p, int promote) {
         if (move == null) return "";
         if (p.type == Type.KING) {
@@ -2490,24 +2700,26 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         return result.toString();
     }
 
+    // This method checks if the current board state has occurred three times in the game's move history, which would result in a draw by repetition
     public static boolean threefoldRepetition() {
         int count = 0;
         for (Object[] o : playerMoveList) {
             count = 0;
             String fenString = (String) o[0];
             String[] a = fenString.split(" ");
-            fenString = a[0] + " " +a[1];
+            fenString = a[0] + " " + a[1];
             for (Object[] o1 : playerMoveList) {
                 String fenString1 = (String) o1[0];
                 String[] arr = fenString1.split(" ");
-                fenString1 = arr[0] + " " +arr[1];
+                fenString1 = arr[0] + " " + arr[1];
                 if (fenString.equals(fenString1)) count++;
             }
         }
         return count > 2;
     }
 
-    public static int openingMoves(String move, boolean color, int promote) {
+    // Make a move according to the Chess Notation move that is specified
+    public static int moveFromChessNotation(String move, boolean color, int promote) {
         HashMap<Character, Integer> TcolMapping = new HashMap<>();
         TcolMapping.put('a', 0);
         TcolMapping.put('b', 1);
@@ -2545,8 +2757,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
             if (move.charAt(2) == '+') {
                 row = 8 - Character.getNumericValue(move.charAt(1));
                 col = TcolMapping.get(move.charAt(0));
-            }
-            else {
+            } else {
                 pieceType = pieceMapping.get(move.charAt(0));
                 row = 8 - Character.getNumericValue(move.charAt(2));
                 col = TcolMapping.get(move.charAt(1));
@@ -2613,13 +2824,13 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                             positions.add(Zobrist.getZobristHash(turn, wcks, wcqs, bcks, bcqs));
                             isInCheck = ChessGame.isInCheck(!p.getColor());
                             stalemate = ChessGame.getAllMoves(!p.getColor()).isEmpty();
-                            isGameEnded = ChessGame.isStaleMate(turn);
+                            isGameEnded = ChessGame.isStaleMate();
                             if (isGameEnded)
                                 resignButton.setText("Exit");
                             if (isInCheck) {
                                 clip = p.sound("chessCheckSound.wav");
                             }
-                            playerMoveList.add(new Object[]{lastMoveFen, movedFrom, movedTo, whiteTime, blackTime, computersColor});
+                            playerMoveList.add(new Object[]{lastMoveFen, movedFrom, movedTo, whiteTime, blackTime, computersColor, stalemate});
                             moveListCounter++;
                             if (isGameEnded || stalemate) {
                                 if (isInCheck)
@@ -2630,8 +2841,6 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                             clip.setFramePosition(0);
                             clip.start();
                             isCompDone = true;
-                            twhitePieces = ChessGame.copy(whitePieces);
-                            tblackPieces = ChessGame.copy(blackPieces);
                             ChessGame.countMoves = 0;
                             return 1;
                         }
@@ -2642,7 +2851,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         return 0;
     }
 
-
+    // Converts a binary string representation of a bitboard to a long integer value
     public static long convertStringToBitboard(String Binary) {
         if (Binary.charAt(0) == '0') {
             return Long.parseLong(Binary, 2);
@@ -2651,15 +2860,17 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         }
     }
 
-    public void runPython(String fen, boolean color) throws IOException {
-        String c = color+"";
+    // Executes a Python script that scrapes the web for a table-base evaluation of the fen specified
+    public void runPython(String fen, boolean color) throws IOException, URISyntaxException {
+        String c = color + "";
+        String name = "tableBase.py";
         String[] cmd = {
                 "python",
-                System.getProperty("user.dir") + "\\tableBase.py",
+                name,
                 c,
                 fen
         };
-        Process p =  Runtime.getRuntime().exec(cmd);
+        Process p = Runtime.getRuntime().exec(cmd);
         try {
             p.waitFor(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
@@ -2667,6 +2878,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         }
     }
 
+    // Loads and starts a chess engine, checks its compatibility with UCI protocol, and updates UI components
     public void loadEngine(int engineNum) {
         Client engine;
         JMenuItem remove;
@@ -2675,8 +2887,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
             engine1.start(enginePath);
             engine = engine1;
             remove = removeEngine1;
-        }
-        else {
+        } else {
             engine2 = new Client();
             engine2.start(enginePath2);
             engine = engine2;
@@ -2686,7 +2897,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         try {
             ret = engine.command(
                     "uci",
-                    lines -> lines.stream().filter(s->s.startsWith("uciok")).findFirst().get(),
+                    lines -> lines.stream().filter(s -> s.startsWith("uciok")).findFirst().get(),
                     line -> line.startsWith("uciok"),
                     11000L).split(" ")[0];
             remove.setEnabled(true);
@@ -2699,10 +2910,11 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
             if (!engineVsEngine.isSelected())
                 playWithEngine.setState(true);
             createAndWriteToEnginesFile(engineNum);
-        }
-        else engineStartButton.setEnabled(false);
+        } else engineStartButton.setEnabled(false);
     }
 
+    // This method creates a new file and writes the engine path to it,
+    // depending on the engine number passed as the "engineNum" parameter
     void createAndWriteToEnginesFile(int engineNum) {
         String path = enginePath;
         String to = "activeEngine.txt";
@@ -2711,7 +2923,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
             path = enginePath2;
         }
         try {
-            FileWriter myWriter = new FileWriter(System.getProperty("user.dir") + "\\"+to);
+            FileWriter myWriter = new FileWriter(System.getProperty("user.dir") + "\\" + to);
             // Writes this content into the specified file
             myWriter.write(path);
 
@@ -2724,9 +2936,10 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         }
     }
 
+    // This method clears the content of a file specified by the "fileName" parameter
     void clearFile(String fileName) {
         try {
-            FileWriter myWriter = new FileWriter(System.getProperty("user.dir") + "\\"+fileName);
+            FileWriter myWriter = new FileWriter(System.getProperty("user.dir") + "\\" + fileName);
             // Writes this content into the specified file
             myWriter.write("");
 
@@ -2739,6 +2952,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         }
     }
 
+    // This method reads the first line of a file and returns it as a string
     String readLineFromFile(String fileName) {
         String res = "";
         try {
@@ -2774,6 +2988,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         return count != 8;
     }
 
+    // This method is used to switch between the two Chess engines
     public void switchEngines() {
         String temp = enginePath;
         enginePath = enginePath2;
@@ -2788,6 +3003,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         loadEngine(1);
         loadEngine(2);
     }
+
     public static boolean isValidFen(String fen) {
         Pattern pattern = Pattern.compile("((([prnbqkPRNBQK12345678]*/){7})([prnbqkPRNBQK12345678]*)) (w|b) ((K?Q?k?q?)|\\-) (([abcdefgh][36])|\\-) (\\d*) (\\d*)");
         Matcher matcher = pattern.matcher(fen);
@@ -2805,8 +3021,56 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
         if (verifyRank(matcher.group(4))) {
             return false;
         }
+
+        // Check for more than one 'k' or more than one 'K'.
+        long countK = fen.chars().filter(ch -> ch == 'k').count();
+        if (countK > 1) {
+            return false;
+        }
+        long countCapitalK = fen.chars().filter(ch -> ch == 'K').count();
+        if (countCapitalK > 1) {
+            return false;
+        }
+        // Check if kings are adjacent
+        int whiteKingIndex = getKingIndex(fen, 'K');
+        int blackKingIndex = getKingIndex(fen, 'k');
+
+        int whiteKingRank = 8 - whiteKingIndex / 8;
+        int whiteKingFile = whiteKingIndex % 8;
+
+        int blackKingRank = 8 - blackKingIndex / 8;
+        int blackKingFile = blackKingIndex % 8;
+
+        if (Math.abs(whiteKingRank - blackKingRank) <= 1 && Math.abs(whiteKingFile - blackKingFile) <= 1)
+            return false;
+
+        // Check draw by insufficient material
+        if (ChessGame.isStaleMate())
+            return false;
+
         // Check two kings.
         return matcher.group(1).contains("k") && matcher.group(1).contains("K");
+    }
+
+    private static int getKingIndex(String fen, char king) {
+        String[] sections = fen.split(" ");
+        int file = 0;
+        int rank = 0;
+
+        for (int i = 0; i < sections[0].length(); i++) {
+            char symbol = sections[0].charAt(i);
+            if (symbol == '/') {
+                file = 0;
+                rank++;
+            } else {
+                if (Character.isDigit(symbol)) {
+                    file += Character.getNumericValue(symbol);
+                } else {
+                    if (symbol == king) return rank*8+file;
+                }
+            }
+        }
+        return -1;
     }
 
 }

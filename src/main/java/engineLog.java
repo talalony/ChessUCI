@@ -6,10 +6,10 @@ import java.io.PrintStream;
 
 public class engineLog extends JFrame {
     Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
-    JLabel log = new JLabel();
     public engineLog() {
         this.add(new JLabel(" Outout"), BorderLayout.NORTH);
-
+        ImageIcon I = new ImageIcon(ClassLoader.getSystemResource( "images/horse.png" ));
+        this.setIconImage(I.getImage());
         JTextArea ta = new JTextArea();
         TextAreaOutputStream taos = new TextAreaOutputStream(ta, 60);
         PrintStream ps = new PrintStream(taos);

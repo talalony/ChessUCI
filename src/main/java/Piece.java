@@ -45,7 +45,7 @@ public abstract class Piece implements Comparable<Piece> {
             };
 
     static long HAndVMoves(int s) {
-        //REMINDER: requires OCCUPIED to be up to date
+        //REMINDER: requires OCCUPIED to be up-to-date
         long binaryS = 1L << s;
         long possibilitiesHorizontal = (OCCUPIED - 2 * binaryS) ^ Long.reverse(Long.reverse(OCCUPIED) - 2 * Long.reverse(binaryS));
         long possibilitiesVertical = ((OCCUPIED & FileMasks8[s % 8]) - (2 * binaryS)) ^ Long.reverse(Long.reverse(OCCUPIED & FileMasks8[s % 8]) - (2 * Long.reverse(binaryS)));
@@ -53,7 +53,7 @@ public abstract class Piece implements Comparable<Piece> {
     }
 
     static long DAndAntiDMoves(int s) {
-        //REMINDER: requires OCCUPIED to be up to date
+        //REMINDER: requires OCCUPIED to be up-to-date
         long binaryS = 1L << s;
         long possibilitiesDiagonal = ((OCCUPIED & DiagonalMasks8[(s / 8) + (s % 8)]) - (2 * binaryS)) ^ Long.reverse(Long.reverse(OCCUPIED & DiagonalMasks8[(s / 8) + (s % 8)]) - (2 * Long.reverse(binaryS)));
         long possibilitiesAntiDiagonal = ((OCCUPIED & AntiDiagonalMasks8[(s / 8) + 7 - (s % 8)]) - (2 * binaryS)) ^ Long.reverse(Long.reverse(OCCUPIED & AntiDiagonalMasks8[(s / 8) + 7 - (s % 8)]) - (2 * Long.reverse(binaryS)));
@@ -123,92 +123,60 @@ public abstract class Piece implements Comparable<Piece> {
 
     protected abstract int evalPiece(boolean raw, boolean endGame);
 
-    private void addToTakenInSortedOrder(boolean color, Piece p) {
-        if (color) {
-            if (GamePanel.takenWhitePieces.isEmpty()) {
-                GamePanel.takenWhitePieces.add(p);
-                return;
-            }
-            for (int i = 0; i < GamePanel.takenWhitePieces.size(); i++) {
-                if (p.evalPiece(true, false) < GamePanel.takenWhitePieces.get(i).evalPiece(true, false)) {
-                    GamePanel.takenWhitePieces.add(i, p);
-                    return;
-                } else if (i == GamePanel.takenWhitePieces.size() - 1) {
-                    GamePanel.takenWhitePieces.add(p);
-                    return;
-                }
-            }
-        } else {
-            if (GamePanel.takenBlackPieces.isEmpty()) {
-                GamePanel.takenBlackPieces.add(p);
-                return;
-            }
-            for (int i = 0; i < GamePanel.takenBlackPieces.size(); i++) {
-                if (p.evalPiece(true, false) < GamePanel.takenBlackPieces.get(i).evalPiece(true, false)) {
-                    GamePanel.takenBlackPieces.add(i, p);
-                    return;
-                } else if (i == GamePanel.takenBlackPieces.size() - 1) {
-                    GamePanel.takenBlackPieces.add(p);
-                    return;
-                }
-            }
-        }
-    }
-
-    public void undoMove(Spot[][] board, Piece rook, Piece toRevive, Piece queen, int[] lastPos, boolean color) {
-        GamePanel.positions.remove(GamePanel.positions.size() - 1);
-        if (lastPos != null)
-            this.lastPos = lastPos;
-        this.lastMoveState.pop();
-        this.isMoved = lastMoveState.lastElement();
-        board[this.row][this.col].makeEmpty();
-        long table = ChessGame.pieceTables.get("" + color + type);
-        table ^= ((1L << (row * 8 + col)) | (1L << (this.lastPos[0] * 8 + this.lastPos[1])));
-        ChessGame.pieceTables.put("" + color + type, table);
-        this.row = this.lastPos[0];
-        this.col = this.lastPos[1];
-        if (!color) {
-            GamePanel.fullMoves--;
-            GamePanel.halfMoves--;
-        }
-        board[this.lastPos[0]][this.lastPos[1]].assignPiece(this);
-
-        if (rook != null) {
-            if (this.type == Type.KING) {
-                King k = (King) this;
-                k.isCastled = false;
-            }
-            rook.undoMove(board, null, null, null, null, color);
-        }
-        castlingRights();
-        if (toRevive != null) {
-            long t = ChessGame.pieceTables.get("" + toRevive.color + toRevive.type);
-            t ^= (1L << (toRevive.row * 8 + toRevive.col));
-            ChessGame.pieceTables.put("" + toRevive.color + toRevive.type, t);
-            board[toRevive.getRow()][toRevive.getCol()].assignPiece(toRevive);
-            if (toRevive.color) {
-                GamePanel.whitePieces.add(toRevive);
-            } else
-                GamePanel.blackPieces.add(toRevive);
-        }
-
-        if (queen != null) {
-            table = ChessGame.pieceTables.get("" + color + "QUEEN");
-            table ^= (1L << (queen.row * 8 + queen.col));
-            ChessGame.pieceTables.put("" + color + "QUEEN", table);
-            table = ChessGame.pieceTables.get("" + color + type);
-            table ^= (1L << (queen.row * 8 + queen.col));
-            ChessGame.pieceTables.put("" + color + type, table);
-            board[this.row][this.col].assignPiece(this);
-            if (this.color) {
-                GamePanel.whitePieces.remove(queen);
-                GamePanel.whitePieces.add(this);
-            } else {
-                GamePanel.blackPieces.remove(queen);
-                GamePanel.blackPieces.add(this);
-            }
-        }
-    }
+//    public void undoMove(Spot[][] board, Piece rook, Piece toRevive, Piece queen, int[] lastPos, boolean color) {
+//        GamePanel.positions.remove(GamePanel.positions.size() - 1);
+//        if (lastPos != null)
+//            this.lastPos = lastPos;
+//        this.lastMoveState.pop();
+//        this.isMoved = lastMoveState.lastElement();
+//        board[this.row][this.col].makeEmpty();
+//        long table = ChessGame.pieceTables.get("" + color + type);
+//        table ^= ((1L << (row * 8 + col)) | (1L << (this.lastPos[0] * 8 + this.lastPos[1])));
+//        ChessGame.pieceTables.put("" + color + type, table);
+//        this.row = this.lastPos[0];
+//        this.col = this.lastPos[1];
+//        if (!color) {
+//            GamePanel.fullMoves--;
+//            GamePanel.halfMoves--;
+//        }
+//        board[this.lastPos[0]][this.lastPos[1]].assignPiece(this);
+//
+//        if (rook != null) {
+//            if (this.type == Type.KING) {
+//                King k = (King) this;
+//                k.isCastled = false;
+//            }
+//            rook.undoMove(board, null, null, null, null, color);
+//        }
+//        castlingRights();
+//        if (toRevive != null) {
+//            long t = ChessGame.pieceTables.get("" + toRevive.color + toRevive.type);
+//            t ^= (1L << (toRevive.row * 8 + toRevive.col));
+//            ChessGame.pieceTables.put("" + toRevive.color + toRevive.type, t);
+//            board[toRevive.getRow()][toRevive.getCol()].assignPiece(toRevive);
+//            if (toRevive.color) {
+//                GamePanel.whitePieces.add(toRevive);
+//            } else
+//                GamePanel.blackPieces.add(toRevive);
+//        }
+//
+//        if (queen != null) {
+//            table = ChessGame.pieceTables.get("" + color + "QUEEN");
+//            table ^= (1L << (queen.row * 8 + queen.col));
+//            ChessGame.pieceTables.put("" + color + "QUEEN", table);
+//            table = ChessGame.pieceTables.get("" + color + type);
+//            table ^= (1L << (queen.row * 8 + queen.col));
+//            ChessGame.pieceTables.put("" + color + type, table);
+//            board[this.row][this.col].assignPiece(this);
+//            if (this.color) {
+//                GamePanel.whitePieces.remove(queen);
+//                GamePanel.whitePieces.add(this);
+//            } else {
+//                GamePanel.blackPieces.remove(queen);
+//                GamePanel.blackPieces.add(this);
+//            }
+//        }
+//    }
 
     public void move(Spot[][] grid, int row, int col, boolean animate, int promote) {
         grid[this.row][this.col].makeEmpty();
@@ -226,9 +194,6 @@ public abstract class Piece implements Comparable<Piece> {
                     Piece p = grid[row + 1][col].getPiece();
                     grid[row + 1][col].makeEmpty();
                     GamePanel.blackPieces.remove(p);
-                    if (animate) {
-                        addToTakenInSortedOrder(false, p);
-                    }
                 } else {
                     long table = ChessGame.pieceTables.get("true" + type);
                     table ^= (1L << ((row - 1) * 8 + col));
@@ -236,9 +201,6 @@ public abstract class Piece implements Comparable<Piece> {
                     Piece p = grid[row - 1][col].getPiece();
                     grid[row - 1][col].makeEmpty();
                     GamePanel.whitePieces.remove(p);
-                    if (animate) {
-                        addToTakenInSortedOrder(true, p);
-                    }
                 }
             }
         }
@@ -250,12 +212,8 @@ public abstract class Piece implements Comparable<Piece> {
             ChessGame.pieceTables.put("" + p.color + p.type, table);
             if (p.color) {
                 GamePanel.whitePieces.remove(p);
-                if (animate)
-                    addToTakenInSortedOrder(true, p);
             } else {
                 GamePanel.blackPieces.remove(p);
-                if (animate)
-                    addToTakenInSortedOrder(false, p);
             }
         }
 

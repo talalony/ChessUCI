@@ -1,30 +1,18 @@
-import static java.util.function.UnaryOperator.identity;
-
 import java.io.*;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 
 public class ChessGame {
     static Long WP = 0L, WN = 0L, WB = 0L, WR = 0L, WQ = 0L, WK = 0L, BP = 0L, BN = 0L, BB = 0L, BR = 0L, BQ = 0L, BK = 0L;
     static Hashtable<String, Long> pieceTables = new Hashtable<>();
     static int countMoves = 0;
-    public static Vector<Piece> blackPieces;
-    public static Vector<Piece> whitePieces;
     public static long pushMap = Long.MAX_VALUE;
     public static long captureMap = Long.MAX_VALUE;
     public static int numOfAttackers = 0;
     public static int blackMobility = 0;
     public static int whiteMobility = 0;
 
-    static List<Piece> copy(List<Piece> l1) {
-        List<Piece> res = new ArrayList<>();
-        for (Piece p : l1) {
-            res.add(p.copy());
-        }
-        return res;
-    }
+    public static boolean isPython = false;
 
 
     public static Spot[][] generate_Board(int row) {
@@ -38,7 +26,7 @@ public class ChessGame {
     }
 
 
-    public static boolean isStaleMate(boolean color) {
+    public static boolean isStaleMate() {
         if (GamePanel.threefoldRepetition()) return true;
         if (GamePanel.whitePieces.size() == 1 && GamePanel.blackPieces.size() == 1)
             return true;
@@ -66,7 +54,6 @@ public class ChessGame {
     }
 
     public static List<Integer[]> getAllMoves(boolean color) {
-//		List<List<Object>> allMoves = new ArrayList<>();
         List<Integer[]> allMoves = new ArrayList<>();
         updateBoards(color);
         GamePanel.tmpIsInCheck = GamePanel.isInCheck;
@@ -627,7 +614,33 @@ public class ChessGame {
         Piece.EMPTY = ~Piece.OCCUPIED;
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void changeDPI() {
+        String p = System.getProperty("user.dir");
+        String[] c = {"REG", "ADD", "\"HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers\"", "/V", "\"" + p + "\\Chess.exe\"", "/T", "REG_SZ", "/D", "\"~GDIDPISCALING DPIUNAWARE\"", "/F"};
+
+        try {
+            Runtime.getRuntime().exec(c);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static boolean isPythonInstalled() {
+        try {
+            String[] s = {"python", "--version"};
+            Process p = Runtime.getRuntime().exec(s);
+            BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line = in.readLine();
+            return line != null && line.startsWith("Python");
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static void main(String[] args) {
+        isPython = isPythonInstalled();
+        changeDPI();
         new GameFrame();
     }
 }

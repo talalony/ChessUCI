@@ -18,8 +18,11 @@ class CustomSliderUI extends BasicSliderUI {
         private static final Dimension THUMB_SIZE = new Dimension(20, 20);
         private final RoundRectangle2D.Float trackShape = new RoundRectangle2D.Float();
 
-        public CustomSliderUI(final JSlider b) {
+        Color trackColor;
+
+        public CustomSliderUI(final JSlider b, Color TC) {
             super(b);
+            trackColor = TC;
         }
 
         @Override
@@ -73,7 +76,7 @@ class CustomSliderUI extends BasicSliderUI {
             g2.fill(trackShape);
 
             // Paint track background.
-            g2.setColor(new Color(200, 200 ,200));
+            g2.setColor(trackColor);
             g2.setClip(trackShape);
             trackShape.y += 1;
             g2.fill(trackShape);

@@ -1,13 +1,15 @@
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import javax.swing.JFrame;
+import javax.swing.*;
 
 public class GameFrame extends JFrame {
 	Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
 	boolean fullScreen = false;
 	public GameFrame() {
 		this.setTitle("Chess");
+		ImageIcon I = new ImageIcon(ClassLoader.getSystemResource( "images/horse.png" ));
+		this.setIconImage(I.getImage());
 		this.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
 
 		this.addWindowListener( new WindowAdapter()

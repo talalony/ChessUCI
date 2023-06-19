@@ -3,6 +3,7 @@ import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.geom.RoundRectangle2D;
 import java.io.IOException;
 
 public class ChoosePieceFrame extends JDialog {
@@ -18,16 +19,21 @@ public class ChoosePieceFrame extends JDialog {
 
     Color blue = new Color(50, 139, 168);
 
+    Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
+
     public ChoosePieceFrame(boolean color) throws IOException {
         this.setUndecorated(true);
-        this.setSize(146, 146);
+        this.setSize(156, 156);
         this.setFocusable(true);
         this.setLocationRelativeTo(null);
+        this.setLocation(dim.width/2-(this.getSize().width/2)+1, dim.height/2-(this.getSize().height/2) -12);
         this.setResizable(false);
         this.setLayout(null);
         this.setAlwaysOnTop(true);
         this.setModal(true);
-//        getContentPane().setBackground(new Color(45, 45, 45));
+        Color defaultBackground = getBackground();
+        setBackground(new Color(defaultBackground.getRed(), defaultBackground.getGreen(), defaultBackground.getBlue(), 240));
+        setOpacity(0.95f);
 
         GamePanel.isChoosePieceAlive = true;
 
@@ -60,13 +66,13 @@ public class ChoosePieceFrame extends JDialog {
         };
 
 
-        knightButton = makeButton(74,2, 70, 70, pieceAction, knightImage);
+        knightButton = makeButton(79,7, 70, 70, pieceAction, knightImage);
 
-        bishopButton = makeButton(2,74, 70, 70, pieceAction, bishopImage);
+        bishopButton = makeButton(7,79, 70, 70, pieceAction, bishopImage);
 
-        rookButton = makeButton(74,74, 70, 70, pieceAction, rookImage);
+        rookButton = makeButton(79,79, 70, 70, pieceAction, rookImage);
 
-        queenButton = makeButton(2,2, 70, 70, pieceAction, queenImage);
+        queenButton = makeButton(7,7, 70, 70, pieceAction, queenImage);
 
 
         this.add(knightButton);
@@ -78,10 +84,19 @@ public class ChoosePieceFrame extends JDialog {
 
     }
 
+    public void paint(Graphics g) {
+        Graphics2D g2 = (Graphics2D) g;
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setColor(Color.white);
+//        g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
+        super.paint(g);
+    }
+
+
     MyButton makeButton(int x, int y, int width, int height, ActionListener l, Image img) {
         MyButton button;
         button = new MyButton("",true);
-        button.setBorder(BorderFactory.createEmptyBorder());
+        button.setBackground(new Color(0, 0, 0, 0));
         button.setBorderPainted(false);
         button.setContentAreaFilled(false);
         button.setBounds(x, y, width, height);

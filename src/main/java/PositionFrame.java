@@ -56,6 +56,8 @@ public class PositionFrame extends JFrame {
 
     public PositionFrame() throws IOException {
         this.setTitle("Set Position");
+        ImageIcon I = new ImageIcon(ClassLoader.getSystemResource( "images/horse.png" ));
+        this.setIconImage(I.getImage());
         this.setSize(500, 400);
 //        this.setLocationRelativeTo(null);
         this.setLocation((dim.width/2)+(dim.width/12), (dim.height/2)-(dim.height/6));

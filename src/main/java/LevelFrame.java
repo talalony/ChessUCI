@@ -1,4 +1,5 @@
 import javax.swing.*;
+import javax.swing.event.ChangeListener;
 import javax.swing.text.NumberFormatter;
 import java.awt.*;
 import java.awt.event.ActionListener;
@@ -12,8 +13,13 @@ public class LevelFrame extends JFrame {
     JCheckBox depth;
 
     JCheckBox time;
-    SpinnerModel model = new SpinnerNumberModel(1,1,100,1);
+    SpinnerModel model = new SpinnerNumberModel(1,0,100,1);
     JSpinner spinner = new JSpinner(model);
+
+    SpinnerModel modelS = new SpinnerNumberModel(0.9,0.1,1,0.1);
+    JSpinner spinnerS = new JSpinner(modelS);
+
+    boolean spinnerOrSpinnerS = true;
     JLabel depthLabel;
     JLabel timeLabel;
 
@@ -23,6 +29,8 @@ public class LevelFrame extends JFrame {
 
     public LevelFrame() {
         this.setTitle("Adjust Level");
+        ImageIcon I = new ImageIcon(ClassLoader.getSystemResource( "images/horse.png" ));
+        this.setIconImage(I.getImage());
         this.setSize(400, 250);
         this.setLocation((dim.width/2)+(dim.width/12), (dim.height/2)-(dim.height/6));
         this.setResizable(false);
@@ -47,6 +55,15 @@ public class LevelFrame extends JFrame {
                 depthLabel.setVisible(true);
 
                 timeLabel.setVisible(false);
+
+                if (!spinner.isDisplayable()) {
+                    this.remove(spinnerS);
+                    spinner.setValue(1);
+                    this.add(spinner);
+                    spinnerOrSpinnerS = true;
+                    this.revalidate();
+                    this.repaint();
+                }
             }
             if (e.getSource() == time) {
                 spinner.setValue(1);
@@ -69,6 +86,33 @@ public class LevelFrame extends JFrame {
             }
         };
 
+        ChangeListener c = e -> {
+            if (!time.isSelected()) {
+                if ((int)spinner.getValue() < 1)
+                    spinner.setValue(1);
+            }
+            if (e.getSource() == spinner) {
+                if ((int)spinner.getValue() < 1) {
+                    this.remove(spinner);
+                    spinnerS.setValue(0.9);
+                    this.add(spinnerS);
+                    spinnerOrSpinnerS = false;
+                    this.revalidate();
+                    this.repaint();
+                }
+            }
+            if (e.getSource() == spinnerS) {
+                if ((double)spinnerS.getValue() > 0.9) {
+                    this.remove(spinnerS);
+                    spinner.setValue(1);
+                    this.add(spinner);
+                    spinnerOrSpinnerS = true;
+                    this.revalidate();
+                    this.repaint();
+                }
+            }
+        };
+
         depth = new JCheckBox("Fixed Search Depth");
         depth.setBounds(20, 20, 150,25);
         depth.setBorder(BorderFactory.createEmptyBorder());
@@ -83,6 +127,13 @@ public class LevelFrame extends JFrame {
         spinner.setBounds(260, 35, 60, 25);
         JFormattedTextField txt = ((JSpinner.NumberEditor) spinner.getEditor()).getTextField();
         ((NumberFormatter) txt.getFormatter()).setAllowsInvalid(false);
+
+        spinnerS.setBounds(260, 35, 60, 25);
+        JFormattedTextField txt1 = ((JSpinner.NumberEditor) spinnerS.getEditor()).getTextField();
+        ((NumberFormatter) txt1.getFormatter()).setAllowsInvalid(false);
+
+        spinner.addChangeListener(c);
+        spinnerS.addChangeListener(c);
 
         depthLabel = new JLabel("Depth: ");
         depthLabel.setFont(new Font(depthLabel.getFont().getName(), Font.PLAIN, 16));
@@ -124,10 +175,7 @@ public class LevelFrame extends JFrame {
         GamePanel.isLevelFrameAlive = true;
     }
 
-//    public void paint(Graphics g) {
-//        super.paint(g);  // fixes the immediate problem.
-//        Graphics2D g2 = (Graphics2D) g;
-//        Line2D lin = new Line2D.Float(190, 0, 190, 400);
-//        g2.draw(lin);
-//    }
+    public boolean isInt() {
+        return spinnerOrSpinnerS;
+    }
 }
