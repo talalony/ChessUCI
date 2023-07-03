@@ -2113,10 +2113,6 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                         shortenLists();
                     movedFrom = new Integer[]{currPiece.getRow(), currPiece.getCol()};
                     movedTo = move;
-//					if (computersColor) {
-//						fullMoves++;
-//						halfMoves++;
-//					}
                     if (board[x][y].isFull() || currPiece.type == Type.PAWN) {
                         halfMoves = 0;
                     }
@@ -2146,7 +2142,9 @@ public class GamePanel extends JPanel implements ActionListener, MouseListener {
                     if (currPiece.type == Type.PAWN && (m[0] == 0 || m[0] == 7)) {
                         try {
                             turn = !turn;
-                            choosePiece = new ChoosePieceFrame(turn);
+                            int xloc = this.getLocationOnScreen().x + w;
+                            int yloc = this.getLocationOnScreen().y + h;
+                            choosePiece = new ChoosePieceFrame(turn, xloc, yloc, m);
                             Pawn p = (Pawn) currPiece;
                             p.promote(board, choosePiece.pressed);
                             isInCheck = ChessGame.isInCheck(!currPiece.getColor());

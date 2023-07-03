@@ -1,9 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.awt.geom.RoundRectangle2D;
 import java.io.IOException;
 
 public class ChoosePieceFrame extends JDialog {
@@ -21,12 +18,13 @@ public class ChoosePieceFrame extends JDialog {
 
     Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
 
-    public ChoosePieceFrame(boolean color) throws IOException {
+    public ChoosePieceFrame(boolean color, int xloc, int yloc, Integer[] square) throws IOException {
         this.setUndecorated(true);
-        this.setSize(156, 156);
+        this.setSize(GamePanel.unitSize, 300);
         this.setFocusable(true);
-        this.setLocationRelativeTo(null);
-        this.setLocation(dim.width/2-(this.getSize().width/2)+1, dim.height/2-(this.getSize().height/2) -12);
+        int height = (square[0] == 7) ? 3*GamePanel.unitSize : GamePanel.unitSize;
+        int width = square[1] * GamePanel.unitSize;
+        this.setLocation(xloc + width, yloc+height);
         this.setResizable(false);
         this.setLayout(null);
         this.setAlwaysOnTop(true);
@@ -65,14 +63,14 @@ public class ChoosePieceFrame extends JDialog {
             GamePanel.turn = !GamePanel.turn;
         };
 
+        int[] xplacments = (color) ?  new int[] {4,78,152,226} : new int[] {226,152,78,4};
+        knightButton = makeButton(2,xplacments[3], 70, 70, pieceAction, knightImage);
 
-        knightButton = makeButton(79,7, 70, 70, pieceAction, knightImage);
+        bishopButton = makeButton(2,xplacments[2], 70, 70, pieceAction, bishopImage);
 
-        bishopButton = makeButton(7,79, 70, 70, pieceAction, bishopImage);
+        rookButton = makeButton(2,xplacments[1], 70, 70, pieceAction, rookImage);
 
-        rookButton = makeButton(79,79, 70, 70, pieceAction, rookImage);
-
-        queenButton = makeButton(7,7, 70, 70, pieceAction, queenImage);
+        queenButton = makeButton(2,xplacments[0], 70, 70, pieceAction, queenImage);
 
 
         this.add(knightButton);

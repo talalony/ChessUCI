@@ -263,9 +263,9 @@ public abstract class Piece implements Comparable<Piece> {
             AudioInputStream audioStream = AudioSystem.getAudioInputStream(url);
             clip = AudioSystem.getClip();
             clip.open(audioStream);
-            FloatControl gainControl =
-                    (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-            gainControl.setValue(-10.0f);
+//            FloatControl gainControl =
+//                    (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
+//            gainControl.setValue(-2.0f);
         } catch (Exception e1) {
             System.out.println("sound not found!");
         }
